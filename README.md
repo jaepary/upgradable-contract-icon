@@ -1,6 +1,6 @@
 # Upgradable Smart Contract for ICON
 
-These are example codes of upgradable smart contracts based on [ICON platform](https://www.icondev.io/index.do). 
+These are example codes for upgradable smart contract based on [ICON platform](https://www.icondev.io/index.do). 
 
 ## Notice
 
