@@ -1,0 +1,5 @@
+{
+    "version": "0.0.1",
+    "main_file": "uc_contract_registry",
+    "main_score": "UcContractRegistry"
+}

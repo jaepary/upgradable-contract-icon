@@ -1,0 +1,16 @@
+{
+    "uri": "http://127.0.0.1:9000/api/v3",
+    "nid": "0x3",
+    "keyStore": null,
+    "from": "hx9ba27cfca70a87042cb9ce53112e97605cd90836",
+    "to": "cx0000000000000000000000000000000000000000",
+    "stepLimit": "0x100000000",
+    "deploy": {
+        "mode": "install",
+        "scoreParams": {
+            "_contractRegistry": "cx9789f30ff9a45450448faf59bd8e968f452769b4"
+        }
+    },
+    "txresult": {},
+    "transfer": {}
+}
