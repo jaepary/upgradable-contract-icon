@@ -249,7 +249,7 @@ class UcOrderAgentProxy(IconScoreBase):
         self._balancesInProgress[orderOwner] -= value
 
         self._orders[_index] = order
-        self.OrderCanceled(_index)
+        self.OrderRejected(_index)
 
     @external
     def finalize(self, _index: int) -> None:
