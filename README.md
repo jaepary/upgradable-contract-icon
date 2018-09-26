@@ -7,7 +7,7 @@ These are example codes of upgradable smart contracts based on [ICON platform](h
 These example codes didn't get a SCORE audit yet. I just hope someone to get help for his or her practical smart contracts from these.
 
 ## Module view
-![Module view](https://github.com/upgradable-contract-icon/raw/master/images/module_view.png)
+![Module view](https://github.com/jaepary/upgradable-contract-icon/blob/master/images/module_view.png)
 
 ## Requirements
 
