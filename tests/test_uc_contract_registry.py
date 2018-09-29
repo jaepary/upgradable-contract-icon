@@ -99,14 +99,14 @@ class TestUcContractRegistry(TestUcBase):
 
         self.__class__._scoreAddrOfStoreAgent2 = self._deploy(installContentBytes, params)
 
-    def test_008_update(self):
+    def test_008_upgrade(self):
         transaction = CallTransactionBuilder()\
             .from_(self._walletOfUc.get_address())\
             .to(self._scoreAddrOfContractRegistry)\
             .step_limit(100000000)\
             .nid(3)\
             .nonce(100)\
-            .method('update')\
+            .method('upgrade')\
             .params({'_contractAddress': self._scoreAddrOfStoreAgent2})\
             .build()
 
@@ -132,7 +132,7 @@ class TestUcContractRegistry(TestUcBase):
         call = CallBuilder().from_(self._walletOfUc.get_address())\
             .to(self._scoreAddrOfContractRegistry)\
             .method('getAddressByName')\
-            .params({'_contractName': 'StoreAgent', '_version': '1'})\
+            .params({'_contractName': 'StoreAgent', '_version': '0x1'})\
             .build()
 
         callResult = self._sendCall(call)
@@ -151,12 +151,53 @@ class TestUcContractRegistry(TestUcBase):
         call = CallBuilder().from_(self._walletOfUc.get_address())\
             .to(self._scoreAddrOfContractRegistry)\
             .method('get')\
-            .params({'_index': '0x0', '_version': '1'})\
+            .params({'_index': '0x0', '_version': '0x1'})\
             .build()
 
         callResult = self._sendCall(call)
         self.assertEqual(json.loads(callResult)['address'], self._scoreAddrOfStoreAgent)
         self.assertEqual(json.loads(callResult)['version'], 1)
+
+    def test_009_downgrade(self):
+        call = CallBuilder().from_(self._walletOfUc.get_address())\
+            .to(self._scoreAddrOfContractRegistry)\
+            .method('getLatestVersion')\
+            .params({'_index': '0x0'})\
+            .build()
+
+        callResult = self._sendCall(call)
+        self.assertEqual(callResult, '0x2')
+
+        transaction = CallTransactionBuilder()\
+            .from_(self._walletOfUc.get_address())\
+            .to(self._scoreAddrOfContractRegistry)\
+            .step_limit(100000000)\
+            .nid(3)\
+            .nonce(100)\
+            .method('downgrade')\
+            .params({'_index': '0x0', '_version': '0x1'})\
+            .build()
+
+        txResult = self._sendTransaction(transaction, self._walletOfUc)
+
+        call = CallBuilder().from_(self._walletOfUc.get_address())\
+            .to(self._scoreAddrOfContractRegistry)\
+            .method('get')\
+            .params({'_index': '0x0'})\
+            .build()
+
+        callResult = self._sendCall(call)
+        self.assertEqual(json.loads(callResult)['address'], self._scoreAddrOfStoreAgent)
+        self.assertEqual(json.loads(callResult)['version'], 1)
+
+        call = CallBuilder().from_(self._walletOfUc.get_address())\
+            .to(self._scoreAddrOfContractRegistry)\
+            .method('getLatestVersion')\
+            .params({'_index': '0x0'})\
+            .build()
+
+        callResult = self._sendCall(call)
+        self.assertEqual(callResult, '0x2')
 
 
 if __name__ == '__main__':
