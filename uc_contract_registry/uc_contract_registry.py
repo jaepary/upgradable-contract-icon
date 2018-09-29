@@ -50,10 +50,10 @@ class UcContractRegistry(IconScoreBase):
             'type': 'object',
             'required': ['name', 'type', 'version', 'address', 'updatedAt'],
             'services': {
-                'name': {'type': 'string'},
-                'type': {'type': 'string'},
+                'name': {'type': 'string', 'minLength': 1},
+                'type': {'type': 'string', 'minLength': 1},
                 'version': {'type': 'number', 'minimum': 1},
-                'address': {'type': 'string'},
+                'address': {'type': 'string', 'minLength': 1},
                 'updatedAt': {'type': 'number'}
             }
         }
@@ -224,6 +224,9 @@ class UcContractRegistry(IconScoreBase):
 
     @external
     def downgrade(self, _index: int, _version: int) -> None:
+        if not self._isContractOwner():
+            self.revert('No permission')
+
         if self._isOutOfRange(_index):
             self.revert('No such contract')
 
