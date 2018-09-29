@@ -26,6 +26,9 @@ class UcContractRegistry(IconScoreBase):
     _SCHEMA_ADDRESS = 'address'
     _SCHEMA_UPDATED_AT = 'updatedAt'
 
+    _META_INDEX = 'index'
+    _META_LATEST_VERSION = 'latestVersion'
+
     _KEY_SEPARATOR = '::'
 
     @eventlog(indexed=1)
@@ -33,7 +36,11 @@ class UcContractRegistry(IconScoreBase):
         pass
 
     @eventlog(indexed=1)
-    def ContractUpdated(self, _index: int):
+    def ContractUpgraded(self, _index: int):
+        pass
+
+    @eventlog(indexed=1)
+    def ContractDowngraded(self, _index: int):
         pass
 
     def __init__(self, db: IconScoreDatabase) -> None:
@@ -53,7 +60,7 @@ class UcContractRegistry(IconScoreBase):
 
         self._contracts = ArrayDB(self._CONTRACTS, db, value_type=str)
         self._contractsByName = DictDB(self._CONTRACTS_BY_NAME, db, value_type=str)
-        self._contractsByNameVersion = DictDB(self._CONTRACTS_BY_NAME_VERSION, db, value_type=str)
+        self._contractsByNameVersion = DictDB(self._CONTRACTS_BY_NAME_VERSION, db, value_type=str, depth=2)
 
     def on_install(self) -> None:
         super().on_install()
@@ -84,11 +91,25 @@ class UcContractRegistry(IconScoreBase):
 
         contractObj = json.loads(self._contracts[_index])
         contractName = contractObj[self._SCHEMA_NAME]
-        contract = self._contractsByNameVersion[contractName + self._KEY_SEPARATOR + str(_version)]
+        contract = self._contractsByNameVersion[contractName][str(_version)]
         if not contract:
             self.revert('No such contract version')
 
         return contract
+
+    @external(readonly=True)
+    def getLatestVersion(self, _index: int) -> int:
+        if self._isOutOfRange(_index):
+            self.revert('No such contract')
+
+        contractObj = json.loads(self._contracts[_index])
+        contractName = contractObj[self._SCHEMA_NAME]
+        meta = self._contractsByName[contractName]
+        if not meta:
+            self.revert('No such contract')
+
+        metaObj = json.loads(meta)
+        return metaObj[self._META_LATEST_VERSION]
 
     @external(readonly=True)
     def getAddressByName(self, _contractName: str, _version: int=0) -> Address:
@@ -96,13 +117,15 @@ class UcContractRegistry(IconScoreBase):
             self.revert('Invalid argument')
 
         if _version == 0:
-            indexStr = self._contractsByName[_contractName]
-            if not indexStr:
+            meta = self._contractsByName[_contractName]
+            if not meta:
                 self.revert('No such contract')
 
-            contractObj = json.loads(self._contracts[int(indexStr)])
+            metaObj = json.loads(meta)
+            index = metaObj[self._META_INDEX]
+            contractObj = json.loads(self._contracts[index])
         else:
-            contract = self._contractsByNameVersion[_contractName + self._KEY_SEPARATOR + str(_version)]
+            contract = self._contractsByNameVersion[_contractName][str(_version)]
             if not contract:
                 self.revert('No such contract version')
 
@@ -145,13 +168,17 @@ class UcContractRegistry(IconScoreBase):
 
         index = len(self._contracts)
         self._contracts.put(json.dumps(contractObj))
-        self._contractsByName[contractName] = str(index)
 
-        self._contractsByNameVersion[contractName + self._KEY_SEPARATOR + str(version)] = self._contracts[index]
+        metaObj = {}
+        metaObj[self._META_INDEX] = index
+        metaObj[self._META_LATEST_VERSION] = version
+        self._contractsByName[contractName] = json.dumps(metaObj)
+
+        self._contractsByNameVersion[contractName][str(version)] = self._contracts[index]
         self.ContractRegistered(index)
 
     @external
-    def update(self, _contractAddress: Address) -> None:
+    def upgrade(self, _contractAddress: Address) -> None:
         if not self._isContractOwner():
             self.revert('No permission')
 
@@ -167,11 +194,12 @@ class UcContractRegistry(IconScoreBase):
         if not contractType:
             self.revert('Invalid contract type')
 
-        indexStr = self._contractsByName[contractName]
-        if not indexStr:
+        meta = self._contractsByName[contractName]
+        if not meta:
             self.revert('No such contract')
 
-        index = int(indexStr)
+        metaObj = json.loads(meta)
+        index = metaObj[self._META_INDEX]
         contractObj = json.loads(self._contracts[index])
         if contractObj[self._SCHEMA_TYPE] != contractType:
             self.revert('Mismatch contract type')
@@ -179,7 +207,8 @@ class UcContractRegistry(IconScoreBase):
         if contractObj[self._SCHEMA_ADDRESS] == str(_contractAddress):
             self.revert('Same contract address')
 
-        version = contractObj[self._SCHEMA_VERSION] + 1
+        version = metaObj[self._META_LATEST_VERSION] + 1
+        metaObj[self._META_LATEST_VERSION] = version
 
         contractObj = {}
         contractObj[self._SCHEMA_NAME] = contractName
@@ -189,5 +218,23 @@ class UcContractRegistry(IconScoreBase):
         contractObj[self._SCHEMA_UPDATED_AT] = self.now()
 
         self._contracts[index] = json.dumps(contractObj)
-        self._contractsByNameVersion[contractName + self._KEY_SEPARATOR + str(version)] = self._contracts[index]
-        self.ContractUpdated(index)
+        self._contractsByName[contractName] = json.dumps(metaObj)
+        self._contractsByNameVersion[contractName][str(version)] = self._contracts[index]
+        self.ContractUpgraded(index)
+
+    @external
+    def downgrade(self, _index: int, _version: int) -> None:
+        if self._isOutOfRange(_index):
+            self.revert('No such contract')
+
+        if _version < 0:
+            self.revert('Invalid argument')
+
+        contractObj = json.loads(self._contracts[_index])
+        contractName = contractObj[self._SCHEMA_NAME]
+        contract = self._contractsByNameVersion[contractName][str(_version)]
+        if not contract:
+            self.revert('No such contract version')
+
+        self._contracts[_index] = contract
+        self.ContractDowngraded(_index)
