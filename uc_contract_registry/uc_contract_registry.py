@@ -29,8 +29,6 @@ class UcContractRegistry(IconScoreBase):
     _META_INDEX = 'index'
     _META_LATEST_VERSION = 'latestVersion'
 
-    _KEY_SEPARATOR = '::'
-
     @eventlog(indexed=1)
     def ContractRegistered(self, _index: int):
         pass
